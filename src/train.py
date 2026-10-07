@@ -13,6 +13,10 @@ from sklearn.metrics import accuracy_score, f1_score
 # "thu nhap thap" cho moi mau da dat accuracy 0.75 ma khong hoc duoc gi.
 F1_THRESHOLD = 0.65
 
+# Dung SQLite theo mac dinh de tracking metadata va thu muc artifact khong
+# tranh chap voi nhau. Co the ghi de bang MLFLOW_TRACKING_URI tren CI/remote.
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db"))
+
 
 def train(
     params: dict,
