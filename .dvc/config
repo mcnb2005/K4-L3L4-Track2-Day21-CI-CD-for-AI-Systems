@@ -1,2 +1,5 @@
 [core]
     site_cache_dir = .dvc-site-cache
+    remote = labstore
+['remote "labstore"']
+    url = s3://pham-minh-cuong-ai20k-lab21/dvc
