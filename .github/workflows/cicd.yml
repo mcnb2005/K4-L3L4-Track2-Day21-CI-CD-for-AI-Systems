@@ -42,7 +42,8 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # JOB 2 - TRAIN
-  # Xac thuc cloud storage, pull du lieu bang DVC, huan luyen mo hinh, upload artifact.
+  # Xac thuc cloud storage, pull du lieu bang DVC, huan luyen mo hinh va luu
+  # model tam thoi bang GitHub Artifact. Model chua duoc phat hanh len S3 o job nay.
   # Chi chay khi Job 1 (Unit Test) hoan thanh thanh cong.
   # ---------------------------------------------------------------------------
   train:
@@ -83,19 +84,16 @@ jobs:
           F1=$(python -c "import json; print(json.load(open('outputs/report.json'))['f1_score'])")
           echo "f1=$F1" >> "$GITHUB_OUTPUT"
 
-      - name: Upload model to Amazon S3
+      - name: Stage trained model
         run: |
-          python - <<'PYEOF'
-          import boto3
-          import os
+          mkdir -p outputs
+          cp models/model.joblib outputs/model.joblib
 
-          bucket = os.environ["ARTIFACT_BUCKET"]
-          key = "artifacts/current/model.joblib"
-          boto3.client("s3").upload_file("models/model.joblib", bucket, key)
-          print(f"Uploaded model to s3://{bucket}/{key}")
-          PYEOF
-        env:
-          ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
+      - name: Upload trained model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model
+          path: outputs/model.joblib
 
       - name: Save report as artifact
         uses: actions/upload-artifact@v4
@@ -138,14 +136,34 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # JOB 4 - RELEASE
-  # Trien khai len VM qua SSH.
+  # Tai model da vuot Quality Gate, phat hanh len S3, sau do trien khai len VM qua SSH.
   # Chi chay khi Job 3 (Quality Gate) hoan thanh thanh cong.
   # ---------------------------------------------------------------------------
   release:
     name: Release
     needs: quality-gate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
+
+      - name: Download trained model
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model
+          path: outputs
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload approved model to S3
+        run: |
+          aws s3 cp outputs/model.joblib \
+            s3://${{ secrets.ARTIFACT_BUCKET }}/artifacts/current/model.joblib
 
       - name: SSH deploy to VM
         uses: appleboy/ssh-action@v1.0.3
