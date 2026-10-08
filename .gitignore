@@ -8,6 +8,7 @@ data/holdout.csv
 data/train_batch2.csv
 sa-key.json
 *.pem
+.local-secrets/
 .env
 .venv/
 __pycache__/
